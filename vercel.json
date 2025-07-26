@@ -1,5 +1,9 @@
 {
   "version": 2,
-  "public": true,
-  "name": "chargebacks-expert-webapp"
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ]
 }
