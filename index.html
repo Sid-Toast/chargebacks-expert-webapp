@@ -1,0 +1,146 @@
+import json
+import boto3
+import os
+from openai import OpenAI
+import re
+
+# Initialize the S3 client
+s3 = boto3.client('s3')
+
+def find_relevant_summaries(prompt, all_summaries, top_n=10):
+    """
+    Finds the most relevant summaries based on keyword matching.
+    """
+    prompt_keywords = set(re.split(r'\s+', prompt.lower()))
+
+    scored_summaries = []
+    for summary_obj in all_summaries:
+        summary_text = summary_obj.get('summary', '').lower()
+        if not summary_text:
+            continue
+        
+        summary_keywords = set(re.split(r'\s+', summary_text))
+        
+        # Simple scoring: count the number of overlapping keywords
+        score = len(prompt_keywords.intersection(summary_keywords))
+        
+        if score > 0:
+            scored_summaries.append({'score': score, 'content': summary_obj['summary']})
+
+    # Sort by score in descending order
+    scored_summaries.sort(key=lambda x: x['score'], reverse=True)
+    
+    # Get the content of the top N summaries
+    relevant_summaries = [item['content'] for item in scored_summaries[:top_n]]
+    
+    print(f"Found {len(relevant_summaries)} relevant summaries out of {len(all_summaries)} total.")
+    
+    # Join the summaries into a single string
+    return "\n\n---\n\n".join(relevant_summaries)
+
+
+def lambda_handler(event, context):
+    # Handle CORS preflight requests
+    if event.get('httpMethod') == 'OPTIONS':
+        return {
+            'statusCode': 204,
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            },
+            'body': ''
+        }
+
+    try:
+        # Get S3 bucket from environment variables
+        s3_bucket_name = os.environ['S3_BUCKET_NAME']
+        summarized_threads_key = 'all_threads_summarized.jsonl'
+        local_summarized_path = '/tmp/all_threads_summarized.jsonl'
+
+        # 1. Parse the incoming request body
+        body = json.loads(event.get('body', '{}'))
+        user_prompt = body.get('prompt')
+
+        if not user_prompt:
+            return {
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'error': 'Prompt is missing'})
+            }
+
+        # 2. Download the summarized threads file from S3
+        print(f"Downloading knowledge base from S3 bucket '{s3_bucket_name}'...")
+        s3.download_file(s3_bucket_name, summarized_threads_key, local_summarized_path)
+        print("Download complete.")
+
+        # 3. Load the summaries into memory
+        all_summaries = []
+        with open(local_summarized_path, 'r') as f:
+            for line in f:
+                all_summaries.append(json.loads(line))
+        print(f"Loaded {len(all_summaries)} summaries from the knowledge base.")
+
+        # 4. Find the most relevant summaries for the prompt (the RAG step)
+        relevant_context = find_relevant_summaries(user_prompt, all_summaries)
+
+        if not relevant_context:
+            relevant_context = "No relevant information was found in the knowledge base."
+
+        # 5. Construct the final prompt for the LLM
+        final_prompt = (
+            "You are an expert on chargebacks, trained on internal Slack conversations. "
+            "Answer the following question based *only* on the provided context below. "
+            "If the context does not contain the answer, say 'I could not find an answer in the knowledge base.'\n\n"
+            f"Question: {user_prompt}\n\n"
+            "--- CONTEXT ---\n"
+            f"{relevant_context}\n"
+            "--- END CONTEXT ---"
+        )
+        
+        # 6. Call the OpenAI API
+        client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": final_prompt,
+                }
+            ],
+            model="gpt-4o-mini",
+        )
+        answer = chat_completion.choices[0].message.content
+
+        # 7. Return the response with CORS headers
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            },
+            'body': json.dumps({'answer': answer})
+        }
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            },
+            'body': json.dumps({'error': str(e)})
+        }
+
+# This part is for local testing if needed
+if __name__ == '__main__':
+    # You would need to set environment variables locally to test this
+    # e.g., export OPENAI_API_KEY='your_key'
+    test_event = {
+        "body": json.dumps({"prompt": "What is a chargeback?"})
+    }
+    print(lambda_handler(test_event, None)) 
