@@ -7,39 +7,37 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
+            background-color: #f4f7f9;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            margin: 0;
         }
         #chat-container {
             width: 100%;
             max-width: 600px;
             height: 80vh;
-            background-color: white;
-            border-radius: 8px;
+            background-color: #fff;
+            border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
         #header {
-            padding: 16px;
-            border-bottom: 1px solid #ddd;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
             text-align: center;
-            background-color: #fff;
         }
         #header h1 {
-            font-size: 1.5em;
             margin: 0;
-            color: #1c1e21;
+            font-size: 1.5em;
+            color: #333;
         }
         #header p {
-            margin: 4px 0 0;
-            color: #606770;
-            font-size: 0.9em;
+            margin: 5px 0 0;
+            color: #777;
         }
         #message-box {
             flex-grow: 1;
@@ -47,50 +45,54 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            gap: 15px;
         }
         .message {
-            max-width: 80%;
             padding: 10px 15px;
             border-radius: 18px;
-            margin-bottom: 10px;
+            max-width: 80%;
             line-height: 1.4;
         }
         .user-message {
-            background-color: #0084ff;
+            background-color: #007bff;
             color: white;
             align-self: flex-end;
+            border-bottom-right-radius: 4px;
         }
         .assistant-message {
-            background-color: #e4e6eb;
-            color: #1c1e21;
+            background-color: #e9e9eb;
+            color: #333;
             align-self: flex-start;
-        }
-        .thinking-indicator {
-            align-self: flex-start;
-            color: #606770;
+            border-bottom-left-radius: 4px;
         }
         #input-area {
             display: flex;
-            padding: 10px;
-            border-top: 1px solid #ddd;
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
         }
         #user-input {
             flex-grow: 1;
             border: 1px solid #ccc;
-            border-radius: 18px;
+            border-radius: 20px;
             padding: 10px 15px;
             font-size: 1em;
+            margin-right: 10px;
+        }
+        #user-input:focus {
             outline: none;
+            border-color: #007bff;
         }
         #send-button {
-            background-color: #0084ff;
+            background-color: #007bff;
             color: white;
             border: none;
-            padding: 0 15px;
-            border-radius: 18px;
-            margin-left: 10px;
-            cursor: pointer;
+            border-radius: 20px;
+            padding: 10px 20px;
             font-size: 1em;
+            cursor: pointer;
+        }
+        .thinking-indicator {
+            font-style: italic;
         }
     </style>
 </head>
@@ -110,7 +112,7 @@
     </div>
 
     <script>
-        const API_URL = "https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask";
+        const API_URL = "https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask"; 
         const messageBox = document.getElementById('message-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
@@ -123,7 +125,7 @@
             messageBox.scrollTop = messageBox.scrollHeight;
         }
 
-        async function handleSend() {
+       async function handleSend() {
             const prompt = userInput.value.trim();
             if (!prompt) return;
 
@@ -143,22 +145,31 @@
                     body: JSON.stringify({ prompt: prompt })
                 });
 
+                // Await the full response body as text first, to handle both success and error cases.
+                const responseText = await response.text();
+                messageBox.removeChild(thinkingIndicator);
+
                 if (!response.ok) {
-                    throw new Error(`API Error: ${response.statusText}`);
+                    // If the response was not successful, display the raw text as the error.
+                    console.error("API Error Response:", responseText);
+                    addMessage(`Server error: ${response.status} - ${responseText}`, 'assistant');
+                    return;
                 }
                 
-                // Response from Lambda is a JSON object where the 'body' is a JSON string.
-                const responseData = await response.json();
-                const bodyData = JSON.parse(responseData.body);
-                const answer = bodyData.answer || "Sorry, I couldn't find an answer.";
-
-                messageBox.removeChild(thinkingIndicator);
+                // Now that we know the response is OK, we can safely parse the lambda payload.
+                const lambdaPayload = JSON.parse(responseText);
+                
+                // The body of the payload is another JSON string that needs to be parsed.
+                const result = JSON.parse(lambdaPayload.body);
+                
+                const answer = result.answer || "Sorry, I couldn't find an answer.";
                 addMessage(answer, 'assistant');
 
             } catch (error) {
+                // This will catch network errors or other client-side script errors.
                 console.error("Failed to fetch from API:", error);
                 messageBox.removeChild(thinkingIndicator);
-                addMessage(`Error: ${error.message}`, 'assistant');
+                addMessage(`Client-side error: ${error.message}`, 'assistant');
             }
         }
 
