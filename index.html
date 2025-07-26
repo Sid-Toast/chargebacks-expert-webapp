@@ -99,7 +99,7 @@
 <body>
     <div id="chat-container">
         <div id="header">
-            <h1>🤖 Chargebacks Expert v1.4</h1>
+            <h1>🤖 Chargebacks Expert v1.5</h1>
             <p>Your personal AI assistant, powered by Slack conversations.</p>
         </div>
         <div id="message-box">
@@ -154,13 +154,14 @@
                     return;
                 }
                 
-                const lambdaPayload = JSON.parse(responseText);
-                const result = JSON.parse(lambdaPayload.body);
+                // The responseText from API Gateway's proxy is the JSON payload. Parse it ONCE.
+                const result = JSON.parse(responseText);
+                
                 const answer = result.answer || "Sorry, I couldn't find an answer.";
                 addMessage(answer, 'assistant');
 
             } catch (error) {
-                console.error("Failed to fetch from API:", error);
+                console.error("Client-side error:", error);
                 messageBox.removeChild(thinkingIndicator);
                 addMessage(`Client-side error: ${error.message}`, 'assistant');
             }
