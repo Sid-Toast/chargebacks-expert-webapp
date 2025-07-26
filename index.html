@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chargebacks Expert</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 80vh;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #header {
+            padding: 16px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+            background-color: #fff;
+        }
+        #header h1 {
+            font-size: 1.5em;
+            margin: 0;
+            color: #1c1e21;
+        }
+        #header p {
+            margin: 4px 0 0;
+            color: #606770;
+            font-size: 0.9em;
+        }
+        #message-box {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .user-message {
+            background-color: #0084ff;
+            color: white;
+            align-self: flex-end;
+        }
+        .assistant-message {
+            background-color: #e4e6eb;
+            color: #1c1e21;
+            align-self: flex-start;
+        }
+        .thinking-indicator {
+            align-self: flex-start;
+            color: #606770;
+        }
+        #input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+        }
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 18px;
+            padding: 10px 15px;
+            font-size: 1em;
+            outline: none;
+        }
+        #send-button {
+            background-color: #0084ff;
+            color: white;
+            border: none;
+            padding: 0 15px;
+            border-radius: 18px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="header">
+            <h1>🤖 Chargebacks Expert</h1>
+            <p>Your personal AI assistant, powered by Slack conversations.</p>
+        </div>
+        <div id="message-box">
+             <div class="message assistant-message">How can I help you today?</div>
+        </div>
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Ask a question about chargebacks...">
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask";
+        const messageBox = document.getElementById('message-box');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+
+        function addMessage(text, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', `${sender}-message`);
+            messageElement.textContent = text;
+            messageBox.appendChild(messageElement);
+            messageBox.scrollTop = messageBox.scrollHeight;
+        }
+
+        async function handleSend() {
+            const prompt = userInput.value.trim();
+            if (!prompt) return;
+
+            addMessage(prompt, 'user');
+            userInput.value = '';
+            
+            const thinkingIndicator = document.createElement('div');
+            thinkingIndicator.classList.add('message', 'assistant-message', 'thinking-indicator');
+            thinkingIndicator.textContent = 'Thinking...';
+            messageBox.appendChild(thinkingIndicator);
+            messageBox.scrollTop = messageBox.scrollHeight;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.statusText}`);
+                }
+                
+                // Response from Lambda is a JSON object where the 'body' is a JSON string.
+                const responseData = await response.json();
+                const bodyData = JSON.parse(responseData.body);
+                const answer = bodyData.answer || "Sorry, I couldn't find an answer.";
+
+                messageBox.removeChild(thinkingIndicator);
+                addMessage(answer, 'assistant');
+
+            } catch (error) {
+                console.error("Failed to fetch from API:", error);
+                messageBox.removeChild(thinkingIndicator);
+                addMessage(`Error: ${error.message}`, 'assistant');
+            }
+        }
+
+        sendButton.addEventListener('click', handleSend);
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                handleSend();
+            }
+        });
+    </script>
+</body>
+</html> 
