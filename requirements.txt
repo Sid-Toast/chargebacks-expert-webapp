@@ -1,5 +1,2 @@
-boto3
-slack_sdk
-openai
 streamlit
-requests 
+requests
