@@ -99,7 +99,7 @@
 <body>
     <div id="chat-container">
         <div id="header">
-            <h1>🤖 Chargebacks Expert v1.5</h1>
+            <h1>�� Chargebacks Expert v1.1</h1>
             <p>Your personal AI assistant, powered by Slack conversations.</p>
         </div>
         <div id="message-box">
@@ -116,6 +116,7 @@
         const messageBox = document.getElementById('message-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
+        let conversationHistory = [];
 
         function addMessage(text, sender) {
             const messageElement = document.createElement('div');
@@ -123,9 +124,17 @@
             messageElement.textContent = text;
             messageBox.appendChild(messageElement);
             messageBox.scrollTop = messageBox.scrollHeight;
+            
+            // Add to history, keeping it to a reasonable size (e.g., last 6 messages)
+            if(sender === 'user' || sender === 'assistant') {
+                conversationHistory.push({ role: sender, content: text });
+                if (conversationHistory.length > 6) {
+                    conversationHistory = conversationHistory.slice(-6);
+                }
+            }
         }
 
-       async function handleSend() {
+        async function handleSend() {
             const prompt = userInput.value.trim();
             if (!prompt) return;
 
@@ -142,13 +151,18 @@
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        history: conversationHistory.slice(0, -1) // Send history *before* the current question
+                    })
                 });
 
+                // Await the full response body as text first, to handle both success and error cases.
                 const responseText = await response.text();
                 messageBox.removeChild(thinkingIndicator);
 
                 if (!response.ok) {
+                    // If the response was not successful, display the raw text as the error.
                     console.error("API Error Response:", responseText);
                     addMessage(`Server error: ${response.status} - ${responseText}`, 'assistant');
                     return;
@@ -161,7 +175,8 @@
                 addMessage(answer, 'assistant');
 
             } catch (error) {
-                console.error("Client-side error:", error);
+                // This will catch network errors or other client-side script errors.
+                console.error("Failed to fetch from API:", error);
                 messageBox.removeChild(thinkingIndicator);
                 addMessage(`Client-side error: ${error.message}`, 'assistant');
             }
@@ -175,4 +190,4 @@
         });
     </script>
 </body>
-</html>
+</html> 
