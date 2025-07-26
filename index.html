@@ -99,7 +99,7 @@
 <body>
     <div id="chat-container">
         <div id="header">
-            <h1>🤖 Chargebacks Expert</h1>
+            <h1>🤖 Chargebacks Expert v1.4</h1>
             <p>Your personal AI assistant, powered by Slack conversations.</p>
         </div>
         <div id="message-box">
@@ -145,28 +145,21 @@
                     body: JSON.stringify({ prompt: prompt })
                 });
 
-                // Await the full response body as text first, to handle both success and error cases.
                 const responseText = await response.text();
                 messageBox.removeChild(thinkingIndicator);
 
                 if (!response.ok) {
-                    // If the response was not successful, display the raw text as the error.
                     console.error("API Error Response:", responseText);
                     addMessage(`Server error: ${response.status} - ${responseText}`, 'assistant');
                     return;
                 }
                 
-                // Now that we know the response is OK, we can safely parse the lambda payload.
                 const lambdaPayload = JSON.parse(responseText);
-                
-                // The body of the payload is another JSON string that needs to be parsed.
                 const result = JSON.parse(lambdaPayload.body);
-                
                 const answer = result.answer || "Sorry, I couldn't find an answer.";
                 addMessage(answer, 'assistant');
 
             } catch (error) {
-                // This will catch network errors or other client-side script errors.
                 console.error("Failed to fetch from API:", error);
                 messageBox.removeChild(thinkingIndicator);
                 addMessage(`Client-side error: ${error.message}`, 'assistant');
@@ -181,4 +174,4 @@
         });
     </script>
 </body>
-</html> 
+</html>
