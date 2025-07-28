@@ -185,8 +185,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-    const chatBox = document.getElementById('chat-box');
-    const messageInput = document.getElementById('message-input');
+    // Correct IDs matching the HTML
+    const messageBox = document.getElementById('message-box');
+    const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
     const apiEndpoint = 'https://ivvqw2t3a9.execute-api.eu-north-1.amazonaws.com/prod/ask-expert';
 
@@ -194,21 +195,28 @@
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', `${sender}-message`);
         
-        // Sanitize text to prevent XSS
+        // Sanitize text to prevent XSS and render line breaks
         const sanitizedText = document.createElement('div');
         sanitizedText.innerText = text;
         messageElement.innerHTML = sanitizedText.innerHTML.replace(/\n/g, '<br>');
 
-        chatBox.appendChild(messageElement);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        messageBox.appendChild(messageElement);
+        messageBox.scrollTop = messageBox.scrollHeight;
     }
 
     async function sendMessage() {
-        const messageText = messageInput.value.trim();
+        const messageText = userInput.value.trim();
         if (messageText === '') return;
 
         appendMessage('user', messageText);
-        messageInput.value = '';
+        userInput.value = '';
+        
+        // Add a "thinking..." indicator
+        const thinkingIndicator = document.createElement('div');
+        thinkingIndicator.classList.add('message', 'assistant-message', 'thinking-indicator');
+        thinkingIndicator.textContent = 'Thinking...';
+        messageBox.appendChild(thinkingIndicator);
+        messageBox.scrollTop = messageBox.scrollHeight;
 
         try {
             const response = await fetch(apiEndpoint, {
@@ -218,44 +226,42 @@
                 },
                 body: JSON.stringify({ prompt: messageText })
             });
+            
+            // Remove the indicator once the response starts coming in
+            messageBox.removeChild(thinkingIndicator);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                appendMessage('bot', `Error: ${response.status} - ${errorText}`);
+                appendMessage('assistant', `Error: ${response.status} - ${errorText}`);
                 return;
             }
 
-            // FIX: Robust JSON parsing
             const responseText = await response.text();
             try {
-                // First, assume the response from Lambda is a stringified JSON payload
-                const lambdaPayload = JSON.parse(responseText);
-                // The actual answer is in the 'body' of that payload, which is another JSON string
-                const result = JSON.parse(lambdaPayload.body);
+                // The backend we restored returns a body which is a JSON string.
+                const result = JSON.parse(responseText); 
                 const answer = result.answer || "Sorry, I couldn't find an answer.";
-                appendMessage('bot', answer);
+                appendMessage('assistant', answer);
             } catch (e) {
-                // If parsing fails at any point, it means the response was likely not JSON.
-                // We treat the raw text as the answer. This handles the API Gateway issue.
-                console.error("Could not parse JSON response, treating as raw text. Error:", e);
-                appendMessage('bot', responseText);
+                // If the response isn't JSON, display it as plain text.
+                appendMessage('assistant', responseText);
             }
 
         } catch (error) {
+            if (messageBox.contains(thinkingIndicator)){
+                 messageBox.removeChild(thinkingIndicator);
+            }
             console.error('Fetch error:', error);
-            appendMessage('bot', 'Error: Failed to get a response. Please check the console for details.');
+            appendMessage('assistant', 'Error: Failed to get a response. Please check the browser console for details.');
         }
     }
 
     sendButton.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', (e) => {
+    userInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             sendMessage();
         }
     });
-
-    // Initial greeting
-    appendMessage('bot', "Hello! I'm the Chargebacks Expert. How can I help you today?");
 });
     </script>
 </body>
