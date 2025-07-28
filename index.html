@@ -184,85 +184,79 @@
     </div>
 
     <script>
-        const API_URL = "https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask"; 
-        const messageBox = document.getElementById('message-box');
-        const userInput = document.getElementById('user-input');
-        const sendButton = document.getElementById('send-button');
+        document.addEventListener('DOMContentLoaded', () => {
+    const chatBox = document.getElementById('chat-box');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const apiEndpoint = 'https://ivvqw2t3a9.execute-api.eu-north-1.amazonaws.com/prod/ask-expert';
 
-        function addMessage(text, sender) {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('message', `${sender}-message`);
-            
-            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/\\n/g, '<br>');
-
-            messageElement.innerHTML = text;
-            messageBox.appendChild(messageElement);
-            scrollToBottom();
-        }
-
-        function showThinkingIndicator() {
-            const indicator = document.createElement('div');
-            indicator.id = 'thinking-indicator';
-            indicator.classList.add('message', 'assistant-message', 'thinking-indicator');
-            indicator.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
-            messageBox.appendChild(indicator);
-            scrollToBottom();
-        }
-
-        function removeThinkingIndicator() {
-            const indicator = document.getElementById('thinking-indicator');
-            if (indicator) {
-                messageBox.removeChild(indicator);
-            }
-        }
+    function appendMessage(sender, text) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', `${sender}-message`);
         
-        function scrollToBottom() {
-            messageBox.scrollTop = messageBox.scrollHeight;
-        }
+        // Sanitize text to prevent XSS
+        const sanitizedText = document.createElement('div');
+        sanitizedText.innerText = text;
+        messageElement.innerHTML = sanitizedText.innerHTML.replace(/\n/g, '<br>');
 
-        async function handleSend() {
-            const prompt = userInput.value.trim();
-            if (!prompt) return;
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
 
-            addMessage(prompt, 'user');
-            userInput.value = '';
-            showThinkingIndicator();
+    async function sendMessage() {
+        const messageText = messageInput.value.trim();
+        if (messageText === '') return;
 
+        appendMessage('user', messageText);
+        messageInput.value = '';
+
+        try {
+            const response = await fetch(apiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prompt: messageText })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                appendMessage('bot', `Error: ${response.status} - ${errorText}`);
+                return;
+            }
+
+            // FIX: Robust JSON parsing
+            const responseText = await response.text();
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
-                });
-
-                removeThinkingIndicator();
-                const responseText = await response.text();
-
-                if (!response.ok) {
-                    addMessage(`Error: Failed to get a response. Server status: ${response.status}`, 'assistant');
-                    console.error("API Error Response:", responseText);
-                    return;
-                }
-                
+                // First, assume the response from Lambda is a stringified JSON payload
                 const lambdaPayload = JSON.parse(responseText);
+                // The actual answer is in the 'body' of that payload, which is another JSON string
                 const result = JSON.parse(lambdaPayload.body);
-                const answer = result.answer || "Sorry, I couldn't find a clear answer for that.";
-                addMessage(answer, 'assistant');
-
-            } catch (error) {
-                removeThinkingIndicator();
-                addMessage(`Error: Failed to get a response. Please check the console for details.`, 'assistant');
-                console.error("Client-side error:", error);
+                const answer = result.answer || "Sorry, I couldn't find an answer.";
+                appendMessage('bot', answer);
+            } catch (e) {
+                // If parsing fails at any point, it means the response was likely not JSON.
+                // We treat the raw text as the answer. This handles the API Gateway issue.
+                console.error("Could not parse JSON response, treating as raw text. Error:", e);
+                appendMessage('bot', responseText);
             }
+
+        } catch (error) {
+            console.error('Fetch error:', error);
+            appendMessage('bot', 'Error: Failed to get a response. Please check the console for details.');
         }
+    }
 
-        sendButton.addEventListener('click', handleSend);
-        userInput.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                handleSend();
-            }
-        });
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // Initial greeting
+    appendMessage('bot', "Hello! I'm the Chargebacks Expert. How can I help you today?");
+});
     </script>
 </body>
 </html>
