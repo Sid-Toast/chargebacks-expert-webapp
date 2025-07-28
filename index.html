@@ -3,155 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chargebacks Expert v1.5</title>
-    <script>
-        // Use a simple in-memory array to store the conversation history
-        let conversationHistory = [];
-
-        async function handleSend() {
-            const userInput = document.getElementById('user-input').value;
-            if (!userInput) return;
-
-            const chatBox = document.getElementById('chat-box');
-            
-            // Display user's message
-            displayMessage('user', userInput);
-
-            // Add a "thinking..." message
-            const thinkingMessage = displayMessage('bot', 'Thinking...', true);
-            
-            // Clear the input
-            document.getElementById('user-input').value = '';
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            try {
-                const response = await fetch('https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: userInput,
-                        history: conversationHistory 
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
-                }
-
-                // The response is now a simple string, not JSON
-                const responseData = await response.json();
-                const answer = responseData.answer;
-                const debugInfo = responseData.debug_info;
-
-                // Stop the thinking animation
-                thinkingMessage.remove();
-
-                // Display the bot's message
-                displayMessage('bot', answer);
-                
-                // Display debug information if available
-                if (debugInfo) {
-                    const debugContainer = document.createElement('div');
-                    debugContainer.className = 'debug-container';
-
-                    const details = document.createElement('details');
-                    const summary = document.createElement('summary');
-                    summary.textContent = 'Show Debug Info';
-                    details.appendChild(summary);
-
-                    const pre = document.createElement('pre');
-                    pre.textContent = JSON.stringify(debugInfo, null, 2);
-                    details.appendChild(pre);
-                    
-                    debugContainer.appendChild(details);
-                    chatBox.appendChild(debugContainer);
-                }
-
-
-                // Add the new interaction to history
-                conversationHistory.push({ "prompt": userInput, "response": answer });
-                
-            } catch (error) {
-                console.error("Failed to fetch from API:", error);
-                thinkingMessage.remove();
-                displayMessage('bot', `Error: Failed to get a response. ${error.message}`);
-            } finally {
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }
-        }
-
-        function displayMessage(role, text, isThinking = false) {
-            const chatBox = document.getElementById('chat-box');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${role}`;
-            
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble';
-            bubble.textContent = text;
-            
-            if (isThinking) {
-                messageDiv.classList.add('thinking');
-            }
-
-            messageDiv.appendChild(bubble);
-            chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-            return messageDiv;
-        }
-    </script>
+    <title>Chargebacks Expert</title>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f4f9; }
-        #chat-container { width: 90%; max-width: 800px; height: 90vh; border: 1px solid #ccc; border-radius: 8px; display: flex; flex-direction: column; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #333; margin: 15px 0; font-size: 1.5em; }
-        #chat-box { flex-grow: 1; overflow-y: auto; padding: 20px; border-bottom: 1px solid #ccc; }
-        .message { margin-bottom: 15px; }
-        .user { text-align: right; }
-        .user .message-bubble { background-color: #007bff; color: white; border-top-right-radius: 0; }
-        .bot .message-bubble { background-color: #e9e9eb; color: #333; border-top-left-radius: 0; }
-        .message-bubble { display: inline-block; padding: 10px 15px; border-radius: 18px; max-width: 80%; line-height: 1.4; }
-        #input-area { display: flex; padding: 10px; }
-        #user-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 18px; margin-right: 10px; }
-        #send-button { padding: 10px 20px; border: none; background-color: #007bff; color: white; border-radius: 18px; cursor: pointer; }
-        .thinking .message-bubble { animation: pulse 1.5s infinite; }
-        @keyframes pulse {
-            0% { opacity: 0.7; }
-            50% { opacity: 1; }
-            100% { opacity: 0.7; }
+        :root {
+            --toast-orange: #fa8c16;
+            --background-light: #f7f8fa;
+            --background-white: #ffffff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --user-bubble-bg: var(--toast-orange);
+            --user-bubble-text: #ffffff;
+            --ai-bubble-bg: #f3f4f6;
+            --ai-bubble-text: #1a1a1a;
         }
-        .debug-container {
-            margin: 10px 20px;
-            padding: 10px;
-            background-color: #f0f0f0;
-            border: 1px dashed #ccc;
-            border-radius: 5px;
-            font-size: 0.8em;
+        body {
+            font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--text-primary);
         }
-        .debug-container summary {
-            cursor: pointer;
-            font-weight: bold;
-            color: #555;
+        #chat-container {
+            width: 100%;
+            max-width: 640px;
+            height: 90vh;
+            max-height: 800px;
+            background-color: var(--background-white);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        .debug-container pre {
-            white-space: pre-wrap;
+        #header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        #toast-logo {
+            width: 40px;
+            height: 40px;
+            background-color: var(--toast-orange);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #toast-logo svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        #header-text h1 {
+            margin: 0;
+            font-size: 1.25em;
+            font-weight: 600;
+        }
+        #header-text p {
+            margin: 2px 0 0;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+        #message-box {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .message {
+            padding: 12px 18px;
+            border-radius: 20px;
+            max-width: 80%;
+            line-height: 1.5;
             word-wrap: break-word;
-            background-color: #fff;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 5px;
+        }
+        .user-message {
+            background-color: var(--user-bubble-bg);
+            color: var(--user-bubble-text);
+            align-self: flex-end;
+            border-bottom-right-radius: 6px;
+        }
+        .assistant-message {
+            background-color: var(--ai-bubble-bg);
+            color: var(--ai-bubble-text);
+            align-self: flex-start;
+            border-bottom-left-radius: 6px;
+        }
+        #input-area {
+            display: flex;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--background-white);
+            align-items: center;
+            gap: 12px;
+        }
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 12px 18px;
+            font-size: 1em;
+            transition: border-color 0.2s;
+        }
+        #user-input:focus {
+            outline: none;
+            border-color: var(--toast-orange);
+            box-shadow: 0 0 0 3px rgba(250, 140, 22, 0.1);
+        }
+        #send-button {
+            background-color: var(--toast-orange);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #send-button:hover {
+            background-color: #e87c0e;
+        }
+        #send-button svg {
+            width: 20px;
+            height: 20px;
+        }
+        .thinking-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-secondary);
+            border-radius: 50%;
+            animation: bounce 1.2s infinite ease-in-out;
+        }
+        .dot:nth-child(2) { animation-delay: -0.15s; }
+        .dot:nth-child(3) { animation-delay: -0.3s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
         }
     </style>
 </head>
 <body>
     <div id="chat-container">
-        <h1>Chargebacks Expert</h1>
-        <div id="chat-box">
-             <!-- Chat messages will appear here -->
+        <div id="header">
+            <div id="toast-logo">
+                <svg viewBox="0 0 24 24"><path d="M19 4H5C3.9 4 3 4.9 3 6V18C3 19.1 3.9 20 5 20H19C20.1 20 21 19.1 21 18V6C21 4.9 20.1 4 19 4ZM19 18H5V10H19V18Z"/></svg>
+            </div>
+            <div id="header-text">
+                <h1>Chargebacks Expert</h1>
+                <p>Your AI partner for resolving chargeback queries.</p>
+            </div>
+        </div>
+        <div id="message-box">
+             <div class="message assistant-message">Hello! I'm the Chargebacks Expert. How can I help you today?</div>
         </div>
         <div id="input-area">
-            <input type="text" id="user-input" placeholder="Ask a question about chargebacks..." onkeydown="if(event.key==='Enter') handleSend()">
-            <button id="send-button" onclick="handleSend()">Send</button>
+            <input type="text" id="user-input" placeholder="Ask a question about chargebacks...">
+            <button id="send-button" aria-label="Send">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
         </div>
     </div>
+
+    <script>
+        const API_URL = "https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask"; 
+        const messageBox = document.getElementById('message-box');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+
+        function addMessage(text, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', `${sender}-message`);
+            
+            // Basic markdown for bolding and newlines
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/\\n/g, '<br>');
+
+            messageElement.innerHTML = text;
+            messageBox.appendChild(messageElement);
+            scrollToBottom();
+        }
+
+        function showThinkingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'thinking-indicator';
+            indicator.classList.add('message', 'assistant-message', 'thinking-indicator');
+            indicator.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            messageBox.appendChild(indicator);
+            scrollToBottom();
+        }
+
+        function removeThinkingIndicator() {
+            const indicator = document.getElementById('thinking-indicator');
+            if (indicator) {
+                messageBox.removeChild(indicator);
+            }
+        }
+        
+        function scrollToBottom() {
+            messageBox.scrollTop = messageBox.scrollHeight;
+        }
+
+        async function handleSend() {
+            const prompt = userInput.value.trim();
+            if (!prompt) return;
+
+            addMessage(prompt, 'user');
+            userInput.value = '';
+            showThinkingIndicator();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                removeThinkingIndicator();
+                const responseText = await response.text();
+
+                if (!response.ok) {
+                    addMessage(`Error: Failed to get a response. Server status: ${response.status}`, 'assistant');
+                    console.error("API Error Response:", responseText);
+                    return;
+                }
+                
+                const lambdaPayload = JSON.parse(responseText);
+                const result = JSON.parse(lambdaPayload.body);
+                const answer = result.answer || "Sorry, I couldn't find a clear answer for that.";
+                addMessage(answer, 'assistant');
+
+            } catch (error) {
+                removeThinkingIndicator();
+                addMessage(`Error: Failed to get a response. Please check the console for details.`, 'assistant');
+                console.error("Client-side error:", error);
+            }
+        }
+
+        sendButton.addEventListener('click', handleSend);
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                handleSend();
+            }
+        });
+    </script>
 </body>
 </html>
