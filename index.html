@@ -1,8 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chargebacks Expert</title>
     <style>
         body {
@@ -52,7 +50,6 @@
             border-radius: 18px;
             max-width: 80%;
             line-height: 1.4;
-            word-wrap: break-word;
         }
         .user-message {
             background-color: #007bff;
@@ -94,14 +91,13 @@
         }
         .thinking-indicator {
             font-style: italic;
-            color: #777;
         }
     </style>
 </head>
 <body>
     <div id="chat-container">
         <div id="header">
-            <h1>🤖 Chargebacks Expert</h1>
+            <h1>�� Chargebacks Expert v1.1</h1>
             <p>Your personal AI assistant, powered by Slack conversations.</p>
         </div>
         <div id="message-box">
@@ -113,75 +109,210 @@
         </div>
     </div>
 
+    <title>Chargebacks Expert v1.5</title>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
         const API_URL = "https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask"; 
         const messageBox = document.getElementById('message-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
+        // Use a simple in-memory array to store the conversation history
+let conversationHistory = [];
 
         function addMessage(text, sender) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', `${sender}-message`);
-            
-            const sanitizedText = document.createElement('div');
-            sanitizedText.innerText = text;
-            messageElement.innerHTML = sanitizedText.innerHTML.replace(/\\n/g, '<br>');
-            
+            messageElement.textContent = text;
             messageBox.appendChild(messageElement);
             messageBox.scrollTop = messageBox.scrollHeight;
-            return messageElement;
+            
+            // Add to history, keeping it to a reasonable size (e.g., last 6 messages)
+            if(sender === 'user' || sender === 'assistant') {
+                conversationHistory.push({ role: sender, content: text });
+                if (conversationHistory.length > 6) {
+                    conversationHistory = conversationHistory.slice(-6);
+                }
+            }
         }
 
-        async function handleSend() {
+async function handleSend() {
             const prompt = userInput.value.trim();
             if (!prompt) return;
+            const userInput = document.getElementById('user-input').value;
+            if (!userInput) return;
+
+            const chatBox = document.getElementById('chat-box');
+            
+            // Display user's message
+            displayMessage('user', userInput);
 
             addMessage(prompt, 'user');
             userInput.value = '';
-            
-            const thinkingIndicator = addMessage('Thinking...', 'assistant');
+            // Add a "thinking..." message
+            const thinkingMessage = displayMessage('bot', 'Thinking...', true);
 
-            try {
+            const thinkingIndicator = document.createElement('div');
+            thinkingIndicator.classList.add('message', 'assistant-message', 'thinking-indicator');
+            thinkingIndicator.textContent = 'Thinking...';
+            messageBox.appendChild(thinkingIndicator);
+            messageBox.scrollTop = messageBox.scrollHeight;
+            // Clear the input
+            document.getElementById('user-input').value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+try {
                 const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
-                });
+                const response = await fetch('https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        history: conversationHistory.slice(0, -1) // Send history *before* the current question
+                    body: JSON.stringify({
+                        prompt: userInput,
+                        history: conversationHistory 
+})
+});
 
+                // Await the full response body as text first, to handle both success and error cases.
+                const responseText = await response.text();
                 messageBox.removeChild(thinkingIndicator);
 
-                const responseText = await response.text();
-
-                if (!response.ok) {
+if (!response.ok) {
+                    // If the response was not successful, display the raw text as the error.
+                    console.error("API Error Response:", responseText);
                     addMessage(`Server error: ${response.status} - ${responseText}`, 'assistant');
                     return;
-                }
+                    const errorText = await response.text();
+                    throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+}
+
+                // The response is now a simple string, not JSON
+                const responseData = await response.json();
+                const answer = responseData.answer;
+                const debugInfo = responseData.debug_info;
+
+                // Stop the thinking animation
+                thinkingMessage.remove();
+
+                // Display the bot's message
+                displayMessage('bot', answer);
+
+                // The responseText from API Gateway's proxy is the JSON payload. Parse it ONCE.
+                const result = JSON.parse(responseText);
                 
-                try {
-                    const result = JSON.parse(responseText);
-                    const answer = result.answer || "Sorry, I couldn't find an answer.";
-                    addMessage(answer, 'assistant');
-                } catch (e) {
-                    addMessage(responseText, 'assistant');
+                const answer = result.answer || "Sorry, I couldn't find an answer.";
+                addMessage(answer, 'assistant');
+                // Display debug information if available
+                if (debugInfo) {
+                    const debugContainer = document.createElement('div');
+                    debugContainer.className = 'debug-container';
+
+                    const details = document.createElement('details');
+                    const summary = document.createElement('summary');
+                    summary.textContent = 'Show Debug Info';
+                    details.appendChild(summary);
+
+                    const pre = document.createElement('pre');
+                    pre.textContent = JSON.stringify(debugInfo, null, 2);
+                    details.appendChild(pre);
+                    
+                    debugContainer.appendChild(details);
+                    chatBox.appendChild(debugContainer);
                 }
 
-            } catch (error) {
-                if (messageBox.contains(thinkingIndicator)) {
-                    messageBox.removeChild(thinkingIndicator);
-                }
-                console.error("Failed to fetch from API:", error);
+
+                // Add the new interaction to history
+                conversationHistory.push({ "prompt": userInput, "response": answer });
+                
+} catch (error) {
+                // This will catch network errors or other client-side script errors.
+console.error("Failed to fetch from API:", error);
+                messageBox.removeChild(thinkingIndicator);
                 addMessage(`Client-side error: ${error.message}`, 'assistant');
-            }
-        }
+                thinkingMessage.remove();
+                displayMessage('bot', `Error: Failed to get a response. ${error.message}`);
+            } finally {
+                chatBox.scrollTop = chatBox.scrollHeight;
+}
+}
 
         sendButton.addEventListener('click', handleSend);
         userInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 handleSend();
-            }
+        function displayMessage(role, text, isThinking = false) {
+            const chatBox = document.getElementById('chat-box');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+            
+            if (isThinking) {
+                messageDiv.classList.add('thinking');
+}
         });
-    });
+
+            messageDiv.appendChild(bubble);
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return messageDiv;
+        }
 </script>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f4f9; }
+        #chat-container { width: 90%; max-width: 800px; height: 90vh; border: 1px solid #ccc; border-radius: 8px; display: flex; flex-direction: column; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; margin: 15px 0; font-size: 1.5em; }
+        #chat-box { flex-grow: 1; overflow-y: auto; padding: 20px; border-bottom: 1px solid #ccc; }
+        .message { margin-bottom: 15px; }
+        .user { text-align: right; }
+        .user .message-bubble { background-color: #007bff; color: white; border-top-right-radius: 0; }
+        .bot .message-bubble { background-color: #e9e9eb; color: #333; border-top-left-radius: 0; }
+        .message-bubble { display: inline-block; padding: 10px 15px; border-radius: 18px; max-width: 80%; line-height: 1.4; }
+        #input-area { display: flex; padding: 10px; }
+        #user-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 18px; margin-right: 10px; }
+        #send-button { padding: 10px 20px; border: none; background-color: #007bff; color: white; border-radius: 18px; cursor: pointer; }
+        .thinking .message-bubble { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        .debug-container {
+            margin: 10px 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            font-size: 0.8em;
+        }
+        .debug-container summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #555;
+        }
+        .debug-container pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <h1>Chargebacks Expert</h1>
+        <div id="chat-box">
+             <!-- Chat messages will appear here -->
+        </div>
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Ask a question about chargebacks..." onkeydown="if(event.key==='Enter') handleSend()">
+            <button id="send-button" onclick="handleSend()">Send</button>
+        </div>
+    </div>
 </body>
+</html> 
 </html>
