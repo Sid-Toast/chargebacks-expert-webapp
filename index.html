@@ -1,172 +1,268 @@
-import boto3
-import json
-import os
-from openai import OpenAI
-import numpy as np
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chargebacks Expert</title>
+    <style>
+        :root {
+            --toast-orange: #fa8c16;
+            --background-light: #f7f8fa;
+            --background-white: #ffffff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --user-bubble-bg: var(--toast-orange);
+            --user-bubble-text: #ffffff;
+            --ai-bubble-bg: #f3f4f6;
+            --ai-bubble-text: #1a1a1a;
+        }
+        body {
+            font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--text-primary);
+        }
+        #chat-container {
+            width: 100%;
+            max-width: 640px;
+            height: 90vh;
+            max-height: 800px;
+            background-color: var(--background-white);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        #toast-logo {
+            width: 40px;
+            height: 40px;
+            background-color: var(--toast-orange);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #toast-logo svg {
+            width: 24px;
+            height: 24px;
+            stroke: white; /* Use stroke for the outline */
+        }
+        #header-text h1 {
+            margin: 0;
+            font-size: 1.25em;
+            font-weight: 600;
+        }
+        #header-text p {
+            margin: 2px 0 0;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+        #message-box {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .message {
+            padding: 12px 18px;
+            border-radius: 20px;
+            max-width: 80%;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: var(--user-bubble-bg);
+            color: var(--user-bubble-text);
+            align-self: flex-end;
+            border-bottom-right-radius: 6px;
+        }
+        .assistant-message {
+            background-color: var(--ai-bubble-bg);
+            color: var(--ai-bubble-text);
+            align-self: flex-start;
+            border-bottom-left-radius: 6px;
+        }
+        #input-area {
+            display: flex;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--background-white);
+            align-items: center;
+            gap: 12px;
+        }
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 12px 18px;
+            font-size: 1em;
+            transition: border-color 0.2s;
+        }
+        #user-input:focus {
+            outline: none;
+            border-color: var(--toast-orange);
+            box-shadow: 0 0 0 3px rgba(250, 140, 22, 0.1);
+        }
+        #send-button {
+            background-color: var(--toast-orange);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #send-button:hover {
+            background-color: #e87c0e;
+        }
+        #send-button svg {
+            width: 20px;
+            height: 20px;
+        }
+        .thinking-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-secondary);
+            border-radius: 50%;
+            animation: bounce 1.2s infinite ease-in-out;
+        }
+        .dot:nth-child(2) { animation-delay: -0.15s; }
+        .dot:nth-child(3) { animation-delay: -0.3s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="header">
+            <div id="toast-logo">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 9V19H18V9C18 6.23858 15.7614 4 13 4H11C8.23858 4 6 6.23858 6 9Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div id="header-text">
+                <h1>Chargebacks Expert</h1>
+                <p>Your chargebacks assistance.</p>
+            </div>
+        </div>
+        <div id="message-box">
+             <div class="message assistant-message">Hello! I'm the Chargebacks Expert. How can I help you today?</div>
+        </div>
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Ask a question about chargebacks...">
+            <button id="send-button" aria-label="Send">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+    </div>
 
-# --- Constants ---
-EMBEDDINGS_KEY = "knowledge_base_embeddings.jsonl"
-LOCAL_EMBEDDINGS_PATH = "/tmp/knowledge_base_embeddings.jsonl"
-EMBEDDING_MODEL = "text-embedding-3-small"
-SYSTEM_PERSONA = (
-    "You are the 'Chargebacks Expert,' an AI assistant designed to support internal Care Agents at our company. "
-    "Your user is always a colleague asking a question on behalf of a customer.\\n\\n"
-    "**Your Persona:** A senior, knowledgeable, and authoritative chargeback specialist. Your tone should be direct, clear, and expert. You are a partner in solving the problem.\\n\\n"
-    "**Your Core Task:** Provide a single, comprehensive, and actionable response that empowers the Care Agent.\\n\\n"
-    "**CRITICAL INSTRUCTIONS:**\\n"
-    "1. **Structure Your Response:** Do not just provide a flat list. Structure your response conversationally. Start by acknowledging the issue, then lay out a clear investigation plan with logical headings (e.g., 'Initial Checks', 'Internal Investigation'), and conclude with clear next steps.\\n"
-    "2. **Synthesize, Don't Summarize:** Your response must be a direct answer synthesized from the most relevant internal documents.\\n"
-    "3. **Use Professional Language:** Use clear, professional language. AVOID internal-only jargon in customer-facing advice.\\n"
-    "4. **Anticipate the Next Question:** Incorporate context that addresses likely follow-up questions.\\n"
-    "5. **Take Ownership:** Clearly define what you (the AI agent) will do and what you need the Care Agent to do.\\n"
-    "6. **Fallback Gracefully:** This is your most important instruction. If, after reviewing all the documents, you cannot find a confident and direct answer, you MUST use one of the following two responses:\\n"
-    "    *   **For a NEW question you can't answer:** Guide them to the correct channel with this exact response: \"That's an excellent question that requires deeper investigation. To get you the best answer, could you please post this query in our #rd-payment-chargebacks Slack channel? Our team monitors that channel and will get back to you there.\"\\n"
-    "    *   **For a follow-up on an EXISTING question (e.g., the user's prompt mentions a Slack thread or case):** Acknowledge this with the following exact response: \"Thank you for the follow-up. I've noted the additional context. Our team will review this and get back to you on the existing thread shortly.\""
-)
+    <script>
+        const API_URL = "https://ghctsltbp2.execute-api.eu-north-1.amazonaws.com/prod/ask"; 
+        const messageBox = document.getElementById('message-box');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
 
-# This global variable will hold our knowledge base in memory.
-knowledge_base = []
+        function addMessage(text, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', `${sender}-message`);
+            
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/\\n/g, '<br>');
 
-def get_embedding(client, text):
-    """Generates an embedding for a given text."""
-    text = text.replace("\\n", " ")
-    try:
-        return client.embeddings.create(input=[text], model=EMBEDDING_MODEL).data[0].embedding
-    except Exception as e:
-        print(f"Error getting embedding: {e}")
-        return None
+            messageElement.innerHTML = text;
+            messageBox.appendChild(messageElement);
+            scrollToBottom();
+        }
 
-def find_relevant_summaries_semantic(client, prompt, kb, top_n=20):
-    """Finds relevant summaries using semantic search (cosine similarity)."""
-    prompt_embedding = get_embedding(client, prompt)
-    if prompt_embedding is None:
-        return []
+        function showThinkingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'thinking-indicator';
+            indicator.classList.add('message', 'assistant-message', 'thinking-indicator');
+            indicator.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            messageBox.appendChild(indicator);
+            scrollToBottom();
+        }
 
-    prompt_embedding = np.array(prompt_embedding)
-
-    scores = []
-    for item in kb:
-        if 'embedding' in item and 'original_text' in item:
-            item_embedding = np.array(item['embedding'])
-            similarity = np.dot(prompt_embedding, item_embedding) / (np.linalg.norm(prompt_embedding) * np.linalg.norm(item_embedding))
-            scores.append({'score': similarity, 'text': item['original_text']})
-
-    scores.sort(key=lambda x: x['score'], reverse=True)
-    return scores[:top_n]
-
-def load_knowledge_base_from_s3():
-    """Loads the knowledge base from S3. This is called on Lambda cold start."""
-    global knowledge_base
-    try:
-        print("--- Attempting to load knowledge base from S3 ---")
-        s3_bucket_name = os.environ.get('S3_BUCKET_NAME')
-        if not s3_bucket_name:
-            raise ValueError("S3_BUCKET_NAME environment variable is not set.")
-
-        s3_client = boto3.client('s3')
-        s3_client.download_file(s3_bucket_name, EMBEDDINGS_KEY, LOCAL_EMBEDDINGS_PATH)
-        
-        temp_kb = []
-        with open(LOCAL_EMBEDDINGS_PATH, 'r', encoding='utf-8') as f:
-            for line in f:
-                if line.strip():
-                    temp_kb.append(json.loads(line))
-        
-        knowledge_base = temp_kb
-        print(f"Successfully loaded {len(knowledge_base)} items from S3.")
-
-    except Exception as e:
-        print(f"WARNING: Could not load knowledge base from S3 on startup. Error: {e}")
-
-# Load the knowledge base once on cold start
-load_knowledge_base_from_s3()
-
-def lambda_handler(event, context):
-    global knowledge_base
-    openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
-    try:
-        # THE FIX: Restore the CORS preflight handler for browser-based UIs
-        if event.get('httpMethod') == 'OPTIONS':
-            print("--- Handling CORS preflight request ---")
-            return {
-                'statusCode': 204,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-                    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-                },
-                'body': ''
+        function removeThinkingIndicator() {
+            const indicator = document.getElementById('thinking-indicator');
+            if (indicator) {
+                messageBox.removeChild(indicator);
             }
-
-        body = json.loads(event.get('body', '{}'))
-
-        # Route 1: Handle direct knowledge base updates
-        if body.get('action') == 'UPDATE_KNOWLEDGE_BASE':
-            print(">>> Received direct knowledge base update action.")
-            new_kb = body.get('knowledge_base', [])
-            knowledge_base = new_kb
-            print(f"In-memory knowledge base updated with {len(knowledge_base)} items.")
-            return {'statusCode': 200, 'body': json.dumps({'status': 'success'})}
-
-        # Route 2: Handle user prompts
-        user_prompt = body.get('prompt')
-        if not user_prompt:
-            return {'statusCode': 400, 'body': json.dumps({'error': 'Missing prompt'})}
-
-        if not knowledge_base:
-            print("Knowledge base is empty. Attempting a final reload from S3...")
-            load_knowledge_base_from_s3()
-
-        relevant_summaries = find_relevant_summaries_semantic(openai_client, user_prompt, knowledge_base)
+        }
         
-        context_for_llm = "\\n\\n---\\n\\n".join([item['text'] for item in relevant_summaries])
-        
-        system_prompt = (
-            f"{SYSTEM_PERSONA}\\n\\n"
-            "Below is a section labeled 'INTERNAL KNOWLEDGE'. Use this information to formulate your answer. "
-            "Do not mention the existence of this section.\\n\\n"
-            f"--- INTERNAL KNOWLEDGE ---\\n{context_for_llm}\\n--- END INTERNAL KNOWLEDGE ---"
-        )
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
-        
-        response = openai_client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages
-        )
-        answer = response.choices[0].message.content
-
-        debug_payload = {
-            "retrieved_context": [
-                {'score': item['score'], 'text': item['text']} for item in relevant_summaries
-            ]
+        function scrollToBottom() {
+            messageBox.scrollTop = messageBox.scrollHeight;
         }
 
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({
-                'answer': answer,
-                'debug_info': debug_payload
-            })
+        async function handleSend() {
+            const prompt = userInput.value.trim();
+            if (!prompt) return;
+
+            addMessage(prompt, 'user');
+            userInput.value = '';
+            showThinkingIndicator();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                removeThinkingIndicator();
+                const responseText = await response.text();
+
+                if (!response.ok) {
+                    addMessage(`Error: Failed to get a response. Server status: ${response.status}`, 'assistant');
+                    console.error("API Error Response:", responseText);
+                    return;
+                }
+                
+                const lambdaPayload = JSON.parse(responseText);
+                const result = JSON.parse(lambdaPayload.body);
+                const answer = result.answer || "Sorry, I couldn't find a clear answer for that.";
+                addMessage(answer, 'assistant');
+
+            } catch (error) {
+                removeThinkingIndicator();
+                addMessage(`Error: Failed to get a response. Please check the console for details.`, 'assistant');
+                console.error("Client-side error:", error);
+            }
         }
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        import traceback
-        traceback.print_exc()
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({'error': 'An internal error occurred.'})
-        }
+        sendButton.addEventListener('click', handleSend);
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                handleSend();
+            }
+        });
+    </script>
+</body>
+</html>
