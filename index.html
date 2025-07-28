@@ -5,53 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chargebacks Expert</title>
     <style>
-        :root {
-            --toast-orange: #fa8c16;
-            --background-light: #f7f8fa;
-            --background-white: #ffffff;
-            --text-primary: #1a1a1a;
-            --text-secondary: #6b7280;
-            --border-color: #e5e7eb;
-            --user-bubble-bg: var(--toast-orange);
-            --user-bubble-text: #ffffff;
-            --ai-bubble-bg: #f3f4f6;
-            --ai-bubble-text: #1a1a1a;
-        }
         body {
-            font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--background-light);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8f9fa;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            color: var(--text-primary);
+            color: #212529;
         }
         #chat-container {
             width: 100%;
-            max-width: 640px;
+            max-width: 700px;
             height: 90vh;
-            max-height: 800px;
-            background-color: var(--background-white);
+            background-color: #ffffff;
             border-radius: 16px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            border: 1px solid #dee2e6;
         }
         #header {
-            padding: 24px;
-            border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
-            gap: 16px;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+            background-color: #fff;
         }
         #toast-logo {
             width: 40px;
             height: 40px;
-            background-color: var(--toast-orange);
-            border-radius: 50%;
+            margin-right: 15px;
+            background-color: #fa8c16;
+            border-radius: 8px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -59,7 +47,7 @@
         #toast-logo svg {
             width: 24px;
             height: 24px;
-            stroke: white; /* Use stroke for the outline */
+            stroke: #fff;
         }
         #header-text h1 {
             margin: 0;
@@ -67,17 +55,17 @@
             font-weight: 600;
         }
         #header-text p {
-            margin: 2px 0 0;
-            color: var(--text-secondary);
+            margin: 4px 0 0;
+            color: #6c757d;
             font-size: 0.9em;
         }
-        #message-box {
+        #chat-box {
             flex-grow: 1;
-            padding: 24px;
+            padding: 20px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
         }
         .message {
             padding: 12px 18px;
@@ -87,75 +75,52 @@
             word-wrap: break-word;
         }
         .user-message {
-            background-color: var(--user-bubble-bg);
-            color: var(--user-bubble-text);
+            background-color: #fa8c16;
+            color: white;
             align-self: flex-end;
-            border-bottom-right-radius: 6px;
+            border-bottom-right-radius: 5px;
         }
-        .assistant-message {
-            background-color: var(--ai-bubble-bg);
-            color: var(--ai-bubble-text);
+        .bot-message {
+            background-color: #e9ecef;
+            color: #212529;
             align-self: flex-start;
-            border-bottom-left-radius: 6px;
+            border-bottom-left-radius: 5px;
         }
         #input-area {
             display: flex;
-            padding: 16px 24px;
-            border-top: 1px solid var(--border-color);
-            background-color: var(--background-white);
-            align-items: center;
-            gap: 12px;
+            padding: 15px;
+            border-top: 1px solid #dee2e6;
+            background-color: #f8f9fa;
         }
-        #user-input {
+        #message-input {
             flex-grow: 1;
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
+            border: 1px solid #ced4da;
+            border-radius: 22px;
             padding: 12px 18px;
             font-size: 1em;
+            margin-right: 10px;
             transition: border-color 0.2s;
         }
-        #user-input:focus {
+        #message-input:focus {
             outline: none;
-            border-color: var(--toast-orange);
-            box-shadow: 0 0 0 3px rgba(250, 140, 22, 0.1);
+            border-color: #fa8c16;
         }
         #send-button {
-            background-color: var(--toast-orange);
+            background-color: #fa8c16;
             color: white;
             border: none;
             border-radius: 50%;
             width: 44px;
             height: 44px;
+            font-size: 1.5em;
+            cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: pointer;
             transition: background-color 0.2s;
         }
         #send-button:hover {
-            background-color: #e87c0e;
-        }
-        #send-button svg {
-            width: 20px;
-            height: 20px;
-        }
-        .thinking-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--text-secondary);
-            border-radius: 50%;
-            animation: bounce 1.2s infinite ease-in-out;
-        }
-        .dot:nth-child(2) { animation-delay: -0.15s; }
-        .dot:nth-child(3) { animation-delay: -0.3s; }
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1.0); }
+            background-color: #d46b08;
         }
     </style>
 </head>
@@ -172,97 +137,86 @@
                 <p>Your chargebacks assistance.</p>
             </div>
         </div>
-        <div id="message-box">
-             <div class="message assistant-message">Hello! I'm the Chargebacks Expert. How can I help you today?</div>
+        <div id="chat-box">
+             <!-- Messages will be appended here -->
         </div>
         <div id="input-area">
-            <input type="text" id="user-input" placeholder="Ask a question about chargebacks...">
-            <button id="send-button" aria-label="Send">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
+            <input type="text" id="message-input" placeholder="Ask a question about chargebacks...">
+            <button id="send-button">→</button>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-    // Correct IDs matching the HTML
-    const messageBox = document.getElementById('message-box');
-    const userInput = document.getElementById('user-input');
-    const sendButton = document.getElementById('send-button');
-    const apiEndpoint = 'https://ivvqw2t3a9.execute-api.eu-north-1.amazonaws.com/prod/ask-expert';
+            const chatBox = document.getElementById('chat-box');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const apiEndpoint = 'https://ivvqw2t3a9.execute-api.eu-north-1.amazonaws.com/prod/ask-expert';
 
-    function appendMessage(sender, text) {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', `${sender}-message`);
-        
-        // Sanitize text to prevent XSS and render line breaks
-        const sanitizedText = document.createElement('div');
-        sanitizedText.innerText = text;
-        messageElement.innerHTML = sanitizedText.innerHTML.replace(/\n/g, '<br>');
+            function appendMessage(sender, text) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message', `${sender}-message`);
+                
+                const sanitizedText = document.createElement('div');
+                sanitizedText.innerText = text;
+                messageElement.innerHTML = sanitizedText.innerHTML.replace(/\\n/g, '<br>');
 
-        messageBox.appendChild(messageElement);
-        messageBox.scrollTop = messageBox.scrollHeight;
-    }
+                chatBox.appendChild(messageElement);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
 
-    async function sendMessage() {
-        const messageText = userInput.value.trim();
-        if (messageText === '') return;
+            async function sendMessage() {
+                const messageText = messageInput.value.trim();
+                if (messageText === '') return;
 
-        appendMessage('user', messageText);
-        userInput.value = '';
-        
-        // Add a "thinking..." indicator
-        const thinkingIndicator = document.createElement('div');
-        thinkingIndicator.classList.add('message', 'assistant-message', 'thinking-indicator');
-        thinkingIndicator.textContent = 'Thinking...';
-        messageBox.appendChild(thinkingIndicator);
-        messageBox.scrollTop = messageBox.scrollHeight;
+                appendMessage('user', messageText);
+                messageInput.value = '';
+                
+                const thinkingIndicator = document.createElement('div');
+                thinkingIndicator.classList.add('message', 'bot-message');
+                thinkingIndicator.textContent = 'Thinking...';
+                chatBox.appendChild(thinkingIndicator);
+                chatBox.scrollTop = chatBox.scrollHeight;
 
-        try {
-            const response = await fetch(apiEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ prompt: messageText })
+                try {
+                    const response = await fetch(apiEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: messageText })
+                    });
+
+                    chatBox.removeChild(thinkingIndicator);
+
+                    const responseText = await response.text();
+                    if (!response.ok) {
+                        appendMessage('bot', `Error: ${response.status} - ${responseText}`);
+                        return;
+                    }
+
+                    try {
+                        const result = JSON.parse(responseText);
+                        const answer = result.answer || "Sorry, I couldn't find an answer.";
+                        appendMessage('bot', answer);
+                    } catch (e) {
+                        // If JSON parsing fails, the response is likely plain text.
+                        appendMessage('bot', responseText);
+                    }
+                } catch (error) {
+                    if (chatBox.contains(thinkingIndicator)) {
+                        chatBox.removeChild(thinkingIndicator);
+                    }
+                    console.error('Fetch error:', error);
+                    appendMessage('bot', 'Error: Failed to get a response. Please check the browser console.');
+                }
+            }
+
+            sendButton.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
             });
-            
-            // Remove the indicator once the response starts coming in
-            messageBox.removeChild(thinkingIndicator);
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                appendMessage('assistant', `Error: ${response.status} - ${errorText}`);
-                return;
-            }
-
-            const responseText = await response.text();
-            try {
-                // The backend we restored returns a body which is a JSON string.
-                const result = JSON.parse(responseText); 
-                const answer = result.answer || "Sorry, I couldn't find an answer.";
-                appendMessage('assistant', answer);
-            } catch (e) {
-                // If the response isn't JSON, display it as plain text.
-                appendMessage('assistant', responseText);
-            }
-
-        } catch (error) {
-            if (messageBox.contains(thinkingIndicator)){
-                 messageBox.removeChild(thinkingIndicator);
-            }
-            console.error('Fetch error:', error);
-            appendMessage('assistant', 'Error: Failed to get a response. Please check the browser console for details.');
-        }
-    }
-
-    sendButton.addEventListener('click', sendMessage);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessage();
-        }
-    });
-});
+            appendMessage('bot', "Hello! I'm the Chargebacks Expert. How can I help you today?");
+        });
     </script>
 </body>
 </html>
