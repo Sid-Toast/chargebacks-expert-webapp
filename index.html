@@ -66,12 +66,34 @@
             align-self: flex-start;
             border-bottom-left-radius: 4px;
         }
-        .debug-info {
+       .debug-info {
             font-size: 0.8em;
-            color: #777;
+            color: #555;
+            background-color: #f0f0f0;
             margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #ddd;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .debug-info details {
+            cursor: pointer;
+        }
+
+        .debug-info summary {
+            font-weight: bold;
+            outline: none;
+        }
+
+        .debug-info ul {
+            padding-left: 20px;
+            margin-top: 5px;
+            list-style-type: square;
+        }
+
+        .debug-info li {
+            margin-bottom: 5px;
+            white-space: pre-wrap; /* Preserve whitespace and wrap text */
         }
         #input-area {
             display: flex;
@@ -134,11 +156,25 @@
             textElement.innerText = text;
             messageWrapper.appendChild(textElement);
 
-            if (debugInfo) {
+            if (debugInfo && debugInfo.retrieved_context && debugInfo.retrieved_context.length > 0) {
                 const debugElement = document.createElement('div');
                 debugElement.classList.add('debug-info');
-                const contextCount = debugInfo.retrieved_context ? debugInfo.retrieved_context.length : 0;
-                debugElement.innerText = `Retrieved ${contextCount} documents from knowledge base.`;
+                
+                const details = document.createElement('details');
+                const summary = document.createElement('summary');
+                summary.textContent = `Referred to ${debugInfo.retrieved_context.length} knowledge base documents`;
+                details.appendChild(summary);
+
+                const contextList = document.createElement('ul');
+                debugInfo.retrieved_context.forEach(item => {
+                    const listItem = document.createElement('li');
+                    // Displaying the 'text' field which contains the readable context
+                    listItem.textContent = `[Score: ${item.score.toFixed(4)}] - ${item.text}`;
+                    contextList.appendChild(listItem);
+                });
+                
+                details.appendChild(contextList);
+                debugElement.appendChild(details);
                 messageWrapper.appendChild(debugElement);
             }
 
